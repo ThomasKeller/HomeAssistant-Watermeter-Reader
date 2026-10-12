@@ -10,22 +10,11 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "watermeter_reader", "app"))
 import cv2  # noqa: E402
-from reader import Calibration, Reader  # noqa: E402
+from reader import Calibration, Reader, default_calibration  # noqa: E402
 
 
 def build_calibration() -> Calibration:
-    c = Calibration()
-    c.anchors = {"QR": (120, 35, 250, 155), "DM": (525, 30, 655, 145), "SN": (295, 124, 480, 153)}
-    c.unit_boxes = {"m3": (585, 235, 650, 300), "m3h": (585, 335, 665, 405)}
-    c.unit_threshold = {"m3": 0.83, "m3h": 0.90}
-    # Zellen = Ziffernausdehnung im Referenzbild (feste Zonen innerhalb der Zelle)
-    big = [(x, 215, x + 45, 304) for x in (162, 214, 266, 318, 370, 422)]
-    dec = [(476, 228, 507, 298), (509, 228, 541, 298), (546, 228, 578, 298)]
-    c.cells["value"] = big + dec
-    c.cells["flow"] = [(384, 312, 416, 372), (422, 312, 456, 372), (460, 312, 492, 372), (498, 312, 530, 372),
-                       (536, 312, 568, 372)]
-    c.decimal_after = 6
-    return c
+    return default_calibration()
 
 
 def main():

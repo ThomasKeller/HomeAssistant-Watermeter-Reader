@@ -1,5 +1,5 @@
 name: Watermeter Reader
-version: "0.1.0"
+version: "0.2.0"
 slug: watermeter_reader
 description: Liest den Wasserzaehler (7-Segment-LCD) aus den Bildern einer ESP32-CAM und meldet den Stand per MQTT an Home Assistant.
 url: https://github.com/ThomasKeller/HomeAssistant-Watermeter-Reader
@@ -27,6 +27,9 @@ options:
   max_rate_m3_per_min: 0.1
   confirm_frames: 2
   save_debug_frames: 20
+  phase_lock: true
+  capture_offset_s: 0.4
+  retry_s: 4
 schema:
   camera_url: str
   capture_path: str
@@ -39,3 +42,6 @@ schema:
   max_rate_m3_per_min: float(0.001,5)
   confirm_frames: int(1,10)
   save_debug_frames: int(0,200)
+  phase_lock: bool
+  capture_offset_s: float(0,5)
+  retry_s: float(1,60)

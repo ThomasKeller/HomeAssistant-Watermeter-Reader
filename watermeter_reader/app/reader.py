@@ -217,3 +217,19 @@ class Reader:
             except ValueError:
                 pass
         return r
+
+
+def default_calibration() -> Calibration:
+    """Geometrie fuer Heitland/Axioma Qalcosonic W1 bei Aufnahmen 800x600 aus dem Halter (Kamera ca. 66 mm ueber
+    dem Glas). Gilt, bis die Einrichtungsseite eigene Bereiche liefert; Koordinaten im Referenzbild."""
+    c = Calibration()
+    c.anchors = {"QR": (120, 35, 250, 155), "DM": (525, 30, 655, 145), "SN": (295, 124, 480, 153)}
+    c.unit_boxes = {"m3": (585, 235, 650, 300), "m3h": (585, 335, 665, 405)}
+    c.unit_threshold = {"m3": 0.83, "m3h": 0.90}
+    big = [(x, 215, x + 45, 304) for x in (162, 214, 266, 318, 370, 422)]
+    dec = [(476, 228, 507, 298), (509, 228, 541, 298), (546, 228, 578, 298)]
+    c.cells["value"] = big + dec
+    c.cells["flow"] = [(384, 312, 416, 372), (422, 312, 456, 372), (460, 312, 492, 372), (498, 312, 530, 372),
+                       (536, 312, 568, 372)]
+    c.decimal_after = 6
+    return c

@@ -1,49 +1,41 @@
-"""Watermeter Reader - Dienst (Geruest, Version 0.1.0).
-
-Aktueller Stand: holt in einem festen Intervall ein Bild von der Kamera und legt das letzte Bild ab.
-Ausrichtung, Ziffernerkennung, Plausibilitaet und MQTT folgen (siehe ../../README.md, "Stand").
-"""
+"""Watermeter Reader - Einstiegspunkt des Add-ons."""
 import json
 import logging
 import os
-import time
-import urllib.request
+
+import mqtt_out
+import web
+from service import Service
 
 OPTIONS_FILE = os.environ.get("OPTIONS_FILE", "/data/options.json")
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
-
 log = logging.getLogger("watermeter")
 
 
-def load_options() -> dict:
-    with open(OPTIONS_FILE, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def fetch(url: str, timeout: float = 60.0) -> bytes:
-    data = urllib.request.urlopen(url, timeout=timeout).read()
-    if len(data) < 3000 or data[:2] != b"\xff\xd8":
-        raise ValueError(f"kein JPEG ({len(data)} Byte)")
-    return data
-
-
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    opt = load_options()
-    url = opt["camera_url"].rstrip("/") + opt["capture_path"]
-    interval = int(opt["poll_interval_s"])
-    log.info("Kamera %s, Intervall %d s", url, interval)
-    os.makedirs(DATA_DIR, exist_ok=True)
-    while True:
-        t0 = time.time()
-        try:
-            jpg = fetch(url)
-            with open(os.path.join(DATA_DIR, "last.jpg"), "wb") as f:
-                f.write(jpg)
-            log.info("Bild %d Byte in %.1f s", len(jpg), time.time() - t0)
-        except Exception as e:  # Netz/Kamera: weiter versuchen
-            log.warning("Abruf fehlgeschlagen: %s", e)
-        time.sleep(max(1.0, interval - (time.time() - t0)))
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    with open(OPTIONS_FILE, encoding="utf-8") as f:
+        opt = json.load(f)
+
+    # MQTT: eigene Zugangsdaten aus den Optionen, sonst der MQTT-Dienst des Supervisors
+    host, port, user, pw = opt.get("mqtt_host", ""), int(opt.get("mqtt_port", 1883)), opt.get("mqtt_user", ""), \
+        opt.get("mqtt_password", "")
+    if not host:
+        sv = mqtt_out.supervisor_mqtt()
+        if sv:
+            host, port, user, pw = sv["host"], sv["port"], sv["user"], sv["password"]
+    pub = None
+    if host:
+        pub = mqtt_out.Publisher(host, port, user, pw, opt.get("mqtt_topic", "wasserzaehler"))
+        log.info("MQTT: %s:%d, Topic %s", host, port, opt.get("mqtt_topic", "wasserzaehler"))
+    else:
+        log.warning("Kein MQTT-Broker konfiguriert: es wird nichts veroeffentlicht")
+
+    svc = Service(opt, DATA_DIR, pub=pub)
+    web.start(svc, 8099)
+    log.info("Kamera %s%s, Intervall %s s, kalibriert: %s", opt["camera_url"], opt.get("capture_path", ""),
+             opt.get("poll_interval_s"), svc.reader is not None)
+    svc.run_forever()
 
 
 if __name__ == "__main__":
