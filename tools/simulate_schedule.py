@@ -77,5 +77,57 @@ def main():
             print(f"  {k:34s} {sum(v)/len(v):8.1f}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--day" not in sys.argv:
     main()
+
+
+# ---------------- Zwei-Takt-Intervall (ab 0.2.3) ----------------
+def simulate_day(mode, seed, draws=15, dur=(30, 180), offset=0.4, idle=180.0, active=36.0, window=120.0,
+                 fetch_range=(8, 15)):
+    """24 h mit `draws` Zapfvorgaengen der Dauer `dur` (s). mode: 'fest36' | 'fest180' | 'adaptiv'.
+    Liefert: Abrufe, erkannte Zapfen, mittlere Verzoegerung bis zur ersten Ablesung eines erkannten Zapfens,
+    Zaehlerstandsablesungen waehrend laufendem Wasser (Aufloesung der Verbrauchskurve)."""
+    rnd = random.Random(seed)
+    starts = sorted(rnd.uniform(6 * 3600, 22 * 3600) for _ in range(draws))
+    draw = [(a, a + rnd.uniform(*dur)) for a in starts]
+    lock = PhaseLock()
+    t, end, fetches, last_act, during = 0.0, 24 * 3600.0, 0, -1e9, 0
+    first_seen = {}
+    while t < end:
+        fetches += 1
+        t_req = t
+        t_cap = t_req + offset
+        meter = is_meter(t_cap)
+        lock.observe(t_cap, meter)
+        flowing = any(a <= t_cap < b for a, b in draw)
+        if meter and flowing:
+            last_act = t_cap
+            during += 1
+            for i, (a, b) in enumerate(draw):
+                if a <= t_cap < b and i not in first_seen:
+                    first_seen[i] = t_cap - a
+        t = t_req + rnd.uniform(*fetch_range)
+        if mode == "fest36":
+            interval = 36.0
+        elif mode == "fest180":
+            interval = idle
+        else:
+            interval = active if (t_cap - last_act) < window else idle
+        t += plan_wait("ok" if meter else "other", t, t_req, interval, lock, offset)
+    seen = list(first_seen.values())
+    return {"abrufe": fetches, "erkannt": len(seen),
+            "verzoegerung": (sum(seen) / len(seen)) if seen else float("nan"), "waehrend": during}
+
+
+def compare_day(draws, dur, seeds=20, label=""):
+    print(f"\n{label}: {draws} Zapfvorgaenge je {dur[0]}-{dur[1]} s, Mittel ueber {seeds} Laeufe")
+    print(f"  {'Modus':9s} {'Abrufe/Tag':>10s} {'Zapfen erkannt':>15s} {'Verzoegerung':>13s} {'Ablesungen im Lauf':>19s}")
+    for mode in ("fest36", "fest180", "adaptiv"):
+        r = [simulate_day(mode, sd, draws, dur) for sd in range(seeds)]
+        m = lambda k: sum(x[k] for x in r if x[k] == x[k]) / max(1, len([1 for x in r if x[k] == x[k]]))
+        print(f"  {mode:9s} {m('abrufe'):10.0f} {m('erkannt'):9.1f} / {draws:<3d} {m('verzoegerung'):10.0f} s {m('waehrend'):19.0f}")
+
+
+if __name__ == "__main__" and "--day" in sys.argv:
+    compare_day(15, (30, 180), label="kurze Zapfen (Haende waschen, Glas fuellen, WC)")
+    compare_day(6, (300, 900), label="lange Verbraeuche (Duschen, Giessen, Wanne)")

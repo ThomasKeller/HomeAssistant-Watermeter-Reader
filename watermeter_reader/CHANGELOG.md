@@ -1,5 +1,13 @@
 # Aenderungen
 
+## 0.2.3
+- Zwei Takte: `poll_interval_s` (Ruhe, 180 s) und `active_interval_s` (36 s), solange Wasser laeuft oder sich der
+  Stand in den letzten `active_window_s` (120 s) geaendert hat. Spart im Modell ca. 72 % der Abrufe gegenueber
+  festen 36 s; bei langen Verbraeuchen bleibt fast die gleiche Aufloesung.
+- Hinweis: Das Intervall rastet auf Vielfache des 18-s-Anzeigezyklus (20 s ergibt 36 s).
+- Status-API zeigt `interval_s` und `aktiv`.
+- Tools: Tagesvergleich in tools/simulate_schedule.py (`--day`).
+
 ## 0.2.2
 - Phasenkopplung: Phase wird auch aus reinen Zaehlerstandsbeobachtungen geschaetzt (vorher blieb sie bei
   ausgerichtetem Intervall unbekannt) und greift schon ab 5 statt 8 Beobachtungen.

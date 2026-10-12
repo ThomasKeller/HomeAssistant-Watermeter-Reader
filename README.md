@@ -4,7 +4,7 @@ Liest einen Wasserzaehler mit 7-Segment-LCD (Heitland/Axioma Qalcosonic W1) aus 
 meldet Zaehlerstand und Status per MQTT an Home Assistant. Die Kamera-Firmware liegt im Schwesterprojekt
 `esp32cam_meter` (liefert nur Bilder, `/capture_led`); die Auswertung laeuft hier auf dem Home-Assistant-Rechner.
 
-## Stand (0.2.0)
+## Stand (0.2.3)
 
 | Baustein | Stand |
 |---|---|
@@ -13,8 +13,9 @@ meldet Zaehlerstand und Status per MQTT an Home Assistant. Die Kamera-Firmware l
 | Ausrichtung an QR-Code/Datamatrix/SN-Schriftzug | fertig (Verschiebung per Template-Matching) |
 | Anzeigenerkennung (`m3`/`m3h`-Symbol) | fertig, 43 von 43 Bildern richtig |
 | Ziffernerkennung (9 Stellen + Durchfluss) | fertig, 21 von 21 Zaehlerbildern vollstaendig |
-| Plausibilitaet (Ratsche, Rate, Bestaetigung ueber Folgemessungen) | fertig, 10 Tests |
-| MQTT mit Discovery (Wasser, m3, total_increasing) | fertig, **noch nicht gegen einen echten Broker getestet** |
+| Plausibilitaet (Ratsche, Rate, Bestaetigung ueber Folgemessungen) | fertig |
+| Abrufplanung nach Anzeigezyklus (Phasenkopplung) und zwei Takte (Ruhe/aktiv) | fertig, im Docker geprueft |
+| MQTT mit Discovery (Wasser, m3, total_increasing) | fertig, im Docker gegen Mosquitto geprueft; **noch nicht im Supervisor** |
 | Weboberflaeche (Ingress): Status, Referenzbild setzen, Stand setzen | Geruest |
 | Einrichtungsseite: Anker/Zahlenbereich per Maus, Anlernen | offen |
 
@@ -27,7 +28,10 @@ Entwicklungsbilder liegen in `dev_frames/` (nicht im Repo, enthalten die Serienn
 ## Entwicklungswerkzeuge
 
 ```bash
-python -m unittest discover -s tests                        # Plausibilitaet
+python -m unittest discover -s tests                        # Plausibilitaet, Planung, Intervall
+python tools/simulate_schedule.py                           # Abrufplanung (Modell, 60 min)
+python tools/simulate_schedule.py --day                     # Tagesvergleich festes Intervall / zwei Takte
+INTERVAL=180 FAIL=0.1 SECS=300 sh tools/e2e/run_e2e.sh      # Docker: Attrappe + Mosquitto + Add-on-Image
 python tools/evaluate.py --frames dev_frames/set1 --ref f012 --debug dev_frames/debug   # Ziffernlesen je Bild
 python tools/replay.py   --frames dev_frames/set1 --ref f012                            # kompletter Dienst, ohne Broker
 ```
@@ -73,6 +77,39 @@ Eine zuverlaessige Durchflussrate ergibt sich aus dem **Zaehlerstand** (der kumu
 
 Die Aufloesung ist durch die kleinste Stelle (1 l) begrenzt: bei einem Fenster von 5 min entspricht 1 l etwa
 0,012 m3/h.
+
+## Abrufintervall (zwei Takte)
+
+Der Zaehler zeigt den Stand nur 10 s lang im festen 18-s-Zyklus (danach 4 s Version, 4 s Pruefsumme). Der Add-on
+koppelt seine Abrufe an diese Phase (`phase_lock`), sodass jeder Abruf in der Mitte des Zaehlerstandsfensters liegt.
+Das Intervall ist deshalb auf Vielfache von 18 s **gerastet**: `poll_interval_s: 20` ergibt 36 s, nicht 20 s.
+
+| Option | Standard | Bedeutung |
+|---|---|---|
+| `poll_interval_s` | 180 | **Ruhe:** Mindestabstand zwischen zwei Abrufen, solange kein Wasser laeuft |
+| `active_interval_s` | 36 | **aktiv:** Mindestabstand, solange Wasser laeuft oder sich der Stand kuerzlich geaendert hat |
+| `active_window_s` | 120 | so lange nach der letzten Aktivitaet bleibt der aktive Takt |
+
+Aktivitaet = Durchfluss > 0 in der zweiten Anzeigezeile oder ein uebernommener neuer Stand. Nach dem Start gilt der
+aktive Takt zunaechst fuer `active_window_s`. Ein Verbrauch geht nie verloren (der Zaehlerstand ist kumulativ); nur der
+Beginn eines Zapfens kann bis `poll_interval_s` spaeter bemerkt werden.
+
+Modell (24 h, Abruf 8-15 s, Mittel ueber 20 Laeufe; `tools/simulate_schedule.py --day`):
+
+| | Abrufe/Tag | Zapfen erkannt | Ablesungen im Lauf | Verzoegerung |
+|---|---|---|---|---|
+| **15 kurze Zapfen (30-180 s)** | | | | |
+| fest 36 s | 1661 | 14,5 / 15 | 30 | 25 s |
+| fest 180 s | 446 | 8,0 / 15 | 8 | 63 s |
+| zwei Takte 180/36 | 467 | 7,8 / 15 | 14 | 56 s |
+| **6 lange Verbraeuche (5-15 min)** | | | | |
+| fest 36 s | 1664 | 6 / 6 | 64 | 24 s |
+| fest 180 s | 447 | 6 / 6 | 17 | 99 s |
+| zwei Takte 180/36 | 496 | 6 / 6 | 56 | 102 s |
+
+Zwei Takte liefern bei langen Verbraeuchen fast die Aufloesung des festen 36-s-Takts mit knapp einem Drittel der
+Abrufe. Bei kurzen Zapfen bringt der aktive Takt kaum mehr Erkennungen als ein festes 180-s-Intervall (ein kurzer
+Zapfen faellt oft komplett zwischen zwei Ruhe-Abrufe). Das Gesamtvolumen ist in allen Faellen im Zaehlerstand enthalten.
 
 ## Plausibilitaet
 

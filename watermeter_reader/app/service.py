@@ -33,6 +33,7 @@ class Service:
         self.lock = PhaseLock()
         self.last_kind = "ok"       # fetch_error | other | unreadable | ok (steuert die Wartezeit)
         self.t_req = 0.0
+        self.last_activity = self.now()   # Start gilt als aktiv: schnell kalibrieren und anlaufen
         self.counters = {"abrufe": 0, "abruf_fehler": 0, "andere_anzeige": 0, "zaehlerstand_bilder": 0}
         self.status = {"state": "gestartet", "text": "", "value": self.tracker.value, "flow": None,
                        "confidence": None, "reason": "", "calibrated": self.reader is not None,
@@ -109,6 +110,19 @@ class Service:
             except OSError:
                 pass
 
+    # ---- Abrufintervall: zwei Takte ----
+    def current_interval(self, now: Optional[float] = None) -> float:
+        """Ruhe: `poll_interval_s` (selten). Aktiv: `active_interval_s`, solange in den letzten `active_window_s`
+        Sekunden Wasser gelaufen ist (Durchfluss > 0 oder sich aendernder Stand). Ein Verbrauch geht nie verloren (der
+        Zaehlerstand ist kumulativ); nur der Beginn faellt ins Ruhefenster."""
+        now = self.now() if now is None else now
+        idle = float(self.opt.get("poll_interval_s", 180))
+        active = float(self.opt.get("active_interval_s", 36))
+        window = float(self.opt.get("active_window_s", 120))
+        if now - self.last_activity < window:
+            return min(active, idle)
+        return idle
+
     # ---- ein Durchlauf ----
     def step(self) -> dict:
         t0 = self.now()
@@ -155,7 +169,11 @@ class Service:
             if self.pub and r.flow != self.last_flow:
                 self.pub.publish("flow", f"{r.flow:.3f}")
             self.last_flow = r.flow
+            if r.flow > 0.0:
+                self.last_activity = t0
         if d.accepted:
+            if d.changed:
+                self.last_activity = t0
             self.status["value"] = d.value
             self.status["last_update"] = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(t0))
             heartbeat = (t0 - self.last_publish) > 300
@@ -176,7 +194,6 @@ class Service:
         return self.status
 
     def run_forever(self) -> None:
-        interval = float(self.opt.get("poll_interval_s", 20))
         while True:
             t = time.time()
             try:
@@ -185,6 +202,9 @@ class Service:
                 log.exception("Durchlauf fehlgeschlagen")
                 self.last_kind = "fetch_error"
             now = time.time()
+            interval = self.current_interval(now)
+            self.status["interval_s"] = interval
+            self.status["aktiv"] = interval < float(self.opt.get("poll_interval_s", 180))
             if self.opt.get("phase_lock", True):
                 wait = plan_wait(self.last_kind, now, self.t_req or t, interval, self.lock,
                                  float(self.opt.get("capture_offset_s", 0.4)), float(self.opt.get("retry_s", 4.0)))
