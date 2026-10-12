@@ -13,6 +13,7 @@ Siehe das README im Repository (Installation, MQTT, Plausibilitaet, Abrufinterva
 | `active_window_s` | 120 | so lange nach der letzten Aktivitaet bleibt der aktive Takt |
 | `mqtt_host`, `mqtt_port`, `mqtt_user`, `mqtt_password` | leer | leer = MQTT-Dienst von Home Assistant |
 | `mqtt_topic` | `wasserzaehler` | Basis-Topic |
+| `mqtt_discovery_prefix` | `homeassistant` | Muss dem „Discovery-Präfix“ der MQTT-Integration in Home Assistant entsprechen (Einstellungen → Geräte & Dienste → MQTT → Konfigurieren). Bei abweichendem Präfix erscheinen sonst keine Entitäten. |
 | `max_rate_m3_per_min` | 0,1 | groesster plausibler Anstieg |
 | `confirm_frames` | 2 | Messungen zur Bestaetigung |
 | `save_debug_frames` | 20 | abgelehnte Bilder behalten |

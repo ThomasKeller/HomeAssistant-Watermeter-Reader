@@ -31,6 +31,8 @@ class Service:
         self.last_publish = 0.0
         self.last_flow: Optional[float] = None
         self.lock = PhaseLock()
+        self._fetch_failed = False
+        self._last_summary = self.now()
         self.last_kind = "ok"       # fetch_error | other | unreadable | ok (steuert die Wartezeit)
         self.t_req = 0.0
         self.last_activity = self.now()   # Start gilt als aktiv: schnell kalibrieren und anlaufen
@@ -91,6 +93,8 @@ class Service:
 
     # ---- Ausgabe ----
     def _publish_state(self, text: str) -> None:
+        if text != self.status.get("state"):
+            log.info("Zustand: %s%s", text, f" ({self.status.get('reason')})" if self.status.get("reason") else "")
         self.status["state"] = text
         if self.pub:
             self.pub.publish("state", text)
@@ -133,10 +137,16 @@ class Service:
         except Exception as e:
             self.last_kind = "fetch_error"
             self.counters["abruf_fehler"] += 1
+            if not self._fetch_failed:
+                log.warning("Kamera nicht erreichbar: %s", e)
+            self._fetch_failed = True
             self.status["reason"] = f"Kamera: {e}"
             self._publish_state("Kamera nicht erreichbar")
             return self.status
         self.status["fetch_s"] = round(self.now() - t0, 1)
+        if self._fetch_failed:
+            log.info("Kamera wieder erreichbar (%.1f s)", self.status["fetch_s"])
+            self._fetch_failed = False
         self.last_frame = jpeg
         if self.reader is None:
             self._publish_state("nicht kalibriert")
@@ -174,6 +184,7 @@ class Service:
         if d.accepted:
             if d.changed:
                 self.last_activity = t0
+                log.info("Zaehlerstand %.3f m3 (Sicherheit %d %%)", d.value, round(r.confidence * 100))
             self.status["value"] = d.value
             self.status["last_update"] = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(t0))
             heartbeat = (t0 - self.last_publish) > 300
@@ -210,4 +221,10 @@ class Service:
                                  float(self.opt.get("capture_offset_s", 0.4)), float(self.opt.get("retry_s", 4.0)))
             else:
                 wait = interval - (now - t)
+            if now - self._last_summary >= 600:
+                self._last_summary = now
+                est = self.lock.estimate()
+                log.info("Zusammenfassung: %s | Intervall %.0f s%s | Phase %s | Stand %s", self.counters,
+                         interval, " (aktiv)" if self.status.get("aktiv") else "",
+                         f"{est[0]:.1f} s ({est[1]:.2f})" if est else "unbekannt", self.status.get("value"))
             time.sleep(max(0.5, wait))

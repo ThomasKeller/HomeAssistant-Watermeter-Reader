@@ -36,9 +36,12 @@ def supervisor_mqtt() -> Optional[dict]:
 
 
 class Publisher:
-    def __init__(self, host: str, port: int, user: str, password: str, base: str, device_id: str = "watermeter"):
+    def __init__(self, host: str, port: int, user: str, password: str, base: str, device_id: str = "watermeter",
+                 discovery_prefix: str = "homeassistant"):
         import paho.mqtt.client as mqtt
         self.base = base.strip("/")
+        # Praefix muss zu "Discovery-Praefix" der MQTT-Integration in Home Assistant passen (Standard: homeassistant)
+        self.prefix = (discovery_prefix or "homeassistant").strip("/")
         self.device_id = device_id
         try:  # paho >= 2
             self.c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"{device_id}_reader")
@@ -88,7 +91,7 @@ class Publisher:
         for key, cfg in ents.items():
             comp, name = key.split("/")
             cfg = dict(cfg, unique_id=f"{self.device_id}_{name}", device=dev, **avail)
-            self.c.publish(f"homeassistant/{comp}/{self.device_id}/{name}/config", json.dumps(cfg), retain=True)
+            self.c.publish(f"{self.prefix}/{comp}/{self.device_id}/{name}/config", json.dumps(cfg), retain=True)
 
     def publish(self, sub: str, payload) -> None:
         topic = f"{self.base}/{sub}"

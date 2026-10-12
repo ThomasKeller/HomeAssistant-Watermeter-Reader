@@ -26,8 +26,10 @@ def main() -> None:
             host, port, user, pw = sv["host"], sv["port"], sv["user"], sv["password"]
     pub = None
     if host:
-        pub = mqtt_out.Publisher(host, port, user, pw, opt.get("mqtt_topic", "wasserzaehler"))
-        log.info("MQTT: %s:%d, Topic %s", host, port, opt.get("mqtt_topic", "wasserzaehler"))
+        prefix = opt.get("mqtt_discovery_prefix", "homeassistant")
+        pub = mqtt_out.Publisher(host, port, user, pw, opt.get("mqtt_topic", "wasserzaehler"),
+                                 discovery_prefix=prefix)
+        log.info("MQTT: %s:%d, Topic %s, Discovery-Praefix %s", host, port, opt.get("mqtt_topic", "wasserzaehler"), prefix)
     else:
         log.warning("Kein MQTT-Broker konfiguriert: es wird nichts veroeffentlicht")
 
