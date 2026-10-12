@@ -1,0 +1,5 @@
+# Dateien, die im Container laufen, muessen LF-Zeilenenden haben (sonst "bad interpreter")
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
