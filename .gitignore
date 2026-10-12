@@ -1,0 +1,10 @@
+# Entwicklungsbilder enthalten die Seriennummer des Zaehlers und sind gross: nicht ins Repo
+dev_frames/
+*.jpg
+*.jpeg
+!watermeter_reader/app/web/**/*.jpg
+
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

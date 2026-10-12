@@ -1,0 +1,41 @@
+name: Watermeter Reader
+version: "0.1.0"
+slug: watermeter_reader
+description: Liest den Wasserzaehler (7-Segment-LCD) aus den Bildern einer ESP32-CAM und meldet den Stand per MQTT an Home Assistant.
+url: https://github.com/ThomasKeller/HomeAssistant-Watermeter-Reader
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+boot: auto
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:water
+panel_title: Wasserzaehler
+services:
+  - mqtt:want
+options:
+  camera_url: "http://192.168.112.31"
+  capture_path: "/capture_led"
+  poll_interval_s: 20
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_password: ""
+  mqtt_topic: "wasserzaehler"
+  max_rate_m3_per_min: 0.1
+  confirm_frames: 2
+  save_debug_frames: 20
+schema:
+  camera_url: str
+  capture_path: str
+  poll_interval_s: int(5,3600)
+  mqtt_host: str?
+  mqtt_port: port
+  mqtt_user: str?
+  mqtt_password: password?
+  mqtt_topic: str
+  max_rate_m3_per_min: float(0.001,5)
+  confirm_frames: int(1,10)
+  save_debug_frames: int(0,200)
