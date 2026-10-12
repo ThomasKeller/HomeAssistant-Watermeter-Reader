@@ -37,11 +37,12 @@ def supervisor_mqtt() -> Optional[dict]:
 
 class Publisher:
     def __init__(self, host: str, port: int, user: str, password: str, base: str, device_id: str = "watermeter",
-                 discovery_prefix: str = "homeassistant"):
+                 discovery_prefix: str = "homeassistant", discovery: bool = True):
         import paho.mqtt.client as mqtt
         self.base = base.strip("/")
         # Praefix muss zu "Discovery-Praefix" der MQTT-Integration in Home Assistant passen (Standard: homeassistant)
         self.prefix = (discovery_prefix or "homeassistant").strip("/")
+        self.discovery = discovery  # False: nur Werte senden, Entitaeten legt der Nutzer per YAML an
         self.device_id = device_id
         try:  # paho >= 2
             self.c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"{device_id}_reader")
@@ -60,7 +61,8 @@ class Publisher:
     def _on_connect(self, client, userdata, *a):
         self.connected = True
         client.publish(f"{self.base}/status", "online", retain=True)
-        self._discovery()
+        if self.discovery:
+            self._discovery()
         for t, v in self._cache.items():  # nach Wiederverbindung zuletzt bekannte Werte erneut senden
             client.publish(t, v, retain=True)
         log.info("MQTT verbunden")

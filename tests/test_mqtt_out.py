@@ -20,7 +20,7 @@ class FakeClient:
     def publish(self, t, p, **k): self.sent.append((t, p))
 
 
-def load(prefix=None):
+def load(prefix=None, discovery=True):
     fake = types.ModuleType("paho.mqtt.client")
     fake.Client = FakeClient
     fake.CallbackAPIVersion = types.SimpleNamespace(VERSION2=2)
@@ -31,9 +31,10 @@ def load(prefix=None):
     import mqtt_out
     importlib.reload(mqtt_out)
     kw = {} if prefix is None else {"discovery_prefix": prefix}
+    kw["discovery"] = discovery
     p = mqtt_out.Publisher("h", 1883, "", "", "wasserzaehler/reader", **kw)
-    p._discovery()
-    return p.c.sent
+    p._on_connect(p.c, None)
+    return [(t, pl) for t, pl in p.c.sent if t.endswith("/config")]
 
 
 class DiscoveryTest(unittest.TestCase):
@@ -49,6 +50,9 @@ class DiscoveryTest(unittest.TestCase):
 
     def test_leeres_praefix_faellt_auf_standard(self):
         self.assertTrue(all(t.startswith("homeassistant/") for t, _ in load("")))
+
+    def test_discovery_aus_sendet_keine_konfiguration(self):
+        self.assertEqual(load("ha/measurement", discovery=False), [])
 
     def test_nutzdaten_zeigen_auf_das_basis_topic(self):
         for t, p in load("ha/measurement"):

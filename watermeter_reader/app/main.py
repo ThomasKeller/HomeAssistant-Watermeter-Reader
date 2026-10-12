@@ -28,8 +28,9 @@ def main() -> None:
     if host:
         prefix = opt.get("mqtt_discovery_prefix", "homeassistant")
         pub = mqtt_out.Publisher(host, port, user, pw, opt.get("mqtt_topic", "wasserzaehler"),
-                                 discovery_prefix=prefix)
-        log.info("MQTT: %s:%d, Topic %s, Discovery-Praefix %s", host, port, opt.get("mqtt_topic", "wasserzaehler"), prefix)
+                                 discovery_prefix=prefix, discovery=bool(opt.get("mqtt_discovery", True)))
+        log.info("MQTT: %s:%d, Topic %s, Discovery %s (Praefix %s)", host, port, opt.get("mqtt_topic", "wasserzaehler"),
+                 "an" if opt.get("mqtt_discovery", True) else "aus", prefix)
     else:
         log.warning("Kein MQTT-Broker konfiguriert: es wird nichts veroeffentlicht")
 

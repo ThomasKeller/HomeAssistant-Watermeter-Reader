@@ -118,3 +118,41 @@ Ein Stand wird nur uebernommen, wenn er nicht kleiner als der letzte ist, nicht 
 die aelteste Messung des bestaetigten Blocks (Verzoegerung: ein Bild). Damit kann ein einzelner Fehlwert nie in
 den Zaehlerstand gelangen, auch nicht, wenn er zur vorigen Messung passt (Ratsche bei `total_increasing`).
 Nach einem Zaehlertausch den Stand ueber die Oberflaeche zuruecksetzen.
+
+## Entitäten per YAML statt Discovery
+
+Mit `mqtt_discovery: false` sendet der Add-on nur die Werte. Die Entitäten legst du dann in der `configuration.yaml` an
+(Basis-Topic = Option `mqtt_topic`, Standard `wasserzaehler`):
+
+```yaml
+mqtt:
+  sensor:
+    - name: "Wasserzaehler Stand"
+      unique_id: wasserzaehler_total_yaml
+      state_topic: "wasserzaehler/value"
+      availability_topic: "wasserzaehler/status"
+      unit_of_measurement: "m³"
+      device_class: water
+      state_class: total_increasing
+      suggested_display_precision: 3
+    - name: "Wasserzaehler Ablesesicherheit"
+      unique_id: wasserzaehler_confidence_yaml
+      state_topic: "wasserzaehler/confidence"
+      availability_topic: "wasserzaehler/status"
+      unit_of_measurement: "%"
+      entity_category: diagnostic
+    - name: "Wasserzaehler Letzte Ablesung"
+      unique_id: wasserzaehler_last_update_yaml
+      state_topic: "wasserzaehler/last_update"
+      availability_topic: "wasserzaehler/status"
+      device_class: timestamp
+      entity_category: diagnostic
+    - name: "Wasserzaehler Status Auswertung"
+      unique_id: wasserzaehler_state_yaml
+      state_topic: "wasserzaehler/state"
+      availability_topic: "wasserzaehler/status"
+      entity_category: diagnostic
+```
+
+Bereits retained Discovery-Konfigurationen früherer Versionen bleiben auf dem Broker liegen und müssen dort gelöscht
+werden (leere retained Nachricht auf `<Präfix>/sensor/watermeter/<name>/config`), sonst erscheinen die Entitäten doppelt.
