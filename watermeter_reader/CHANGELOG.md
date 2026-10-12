@@ -1,5 +1,9 @@
 # Aenderungen
 
+## 0.2.1
+- Image-Bau repariert: BUILD_FROM hat jetzt einen Standardwert (python:3.12-slim); der Supervisor uebergibt es
+  ohne build.yaml nicht mehr. OpenCV/NumPy/paho kommen als pip-Wheels, run.sh braucht kein bashio mehr.
+
 ## 0.2.0
 - Kern: Ausrichtung, Anzeigenerkennung, 7-Segment-Ziffernlesen (9 Stellen + Durchfluss).
 - Plausibilitaet ueber Folgemessungen, Ratenbegrenzung, Ratschenschutz.
