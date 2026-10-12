@@ -14,6 +14,10 @@ def in_meter(t, ph=PH):
     return ((t - ph) % CYCLE) < METER_LEN
 
 
+def in_meter_from(phase, t):
+    return ((t - phase) % CYCLE) < METER_LEN
+
+
 def filled(n=20, seed=1, ph=PH):
     r = random.Random(seed)
     lk = PhaseLock()
@@ -30,6 +34,15 @@ class PhaseLockTest(unittest.TestCase):
         for t in (0.0, 5.0, 10.0):
             lk.observe(t, True)
         self.assertIsNone(lk.estimate())
+
+    def test_nur_zaehlerstandsbeobachtungen_geben_trotzdem_eine_phase(self):
+        lk = PhaseLock()
+        for k in range(10):                   # alle 18 s an derselben relativen Stelle im Fenster
+            lk.observe(1000.0 + 18.0 * k + 6.0, True)
+        est = lk.estimate()
+        self.assertIsNotNone(est)
+        c = lk.next_window_center(1000.0 + 18.0 * 10 + 6.0)
+        self.assertTrue(in_meter_from(est[0], c))
 
     def test_phase_wird_gefunden(self):
         lk, _ = filled(30)

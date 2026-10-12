@@ -19,7 +19,7 @@ METER_LEN = 10.0   # s, so lange steht der Zaehlerstand
 
 
 class PhaseLock:
-    def __init__(self, maxobs: int = 40, min_obs: int = 8, min_score: float = 0.9, step: float = 0.25):
+    def __init__(self, maxobs: int = 40, min_obs: int = 5, min_score: float = 0.9, step: float = 0.25):
         self.obs: Deque[Tuple[float, bool]] = deque(maxlen=maxobs)
         self.min_obs, self.min_score, self.step = min_obs, min_score, step
 
@@ -30,7 +30,10 @@ class PhaseLock:
         """(Phase, Uebereinstimmung): Phase = Zeitpunkt (mod 18 s), zu dem das Zaehlerstandsfenster beginnt.
         None, wenn zu wenige Beobachtungen oder die Uebereinstimmung zu gering ist."""
         n = len(self.obs)
-        if n < self.min_obs or not any(m for _, m in self.obs) or all(m for _, m in self.obs):
+        # Mindestens eine Zaehlerstandsbeobachtung noetig. Auch wenn ALLE Beobachtungen im Fenster lagen, ist die Phase
+        # eingegrenzt (das Fenster muss alle Aufnahmezeiten enthalten); die Mitte des zulaessigen Bereichs ist dann eine
+        # selbstkonsistente Schaetzung: weitere Abrufe an derselben relativen Stelle bleiben im Fenster.
+        if n < self.min_obs or not any(m for _, m in self.obs):
             return None
         t0 = self.obs[0][0]
         k = int(CYCLE / self.step)

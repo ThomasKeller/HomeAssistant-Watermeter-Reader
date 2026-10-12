@@ -1,5 +1,10 @@
 # Aenderungen
 
+## 0.2.2
+- Phasenkopplung: Phase wird auch aus reinen Zaehlerstandsbeobachtungen geschaetzt (vorher blieb sie bei
+  ausgerichtetem Intervall unbekannt) und greift schon ab 5 statt 8 Beobachtungen.
+- Ende-zu-Ende-Test im Docker (tools/e2e): Kamera-Attrappe + Mosquitto + Add-on-Image.
+
 ## 0.2.1
 - Image-Bau repariert: BUILD_FROM hat jetzt einen Standardwert (python:3.12-slim); der Supervisor uebergibt es
   ohne build.yaml nicht mehr. OpenCV/NumPy/paho kommen als pip-Wheels, run.sh braucht kein bashio mehr.
